@@ -16,10 +16,10 @@ def items_from_docx(file):
     return items
 
 
-def zotero_collection_from_items(items, collection, **connection):
+def zotero_collection_from_items(items, collection_name, **connection):
     zot = zotero.Zotero(**connection)
-    collection = zot.create_collections([{'name': collection}])["success"]["0"]
-    print("Adding to collection %s..." % collection)
+    collection = zot.create_collections([{'name': collection_name}])["success"]["0"]
+    print("Adding to collection %s..." % collection_name)
     li = len(items)
     for i, it in enumerate(items):
         zot.addto_collection(collection, zot.item(it))
@@ -27,14 +27,15 @@ def zotero_collection_from_items(items, collection, **connection):
     return
 
 
-if __name__ == "__main__":
+def main():
     import argparse
+    import os
     parser = argparse.ArgumentParser(
         description="Create a collection from items added to a Word .docx file"
         " via the Word Zotero Integration")
     parser.add_argument('file', help="The .docx file path.")
     parser.add_argument("collection", help="Name of new collection to create.")
-    parser.add_argument("api_key", help="A Zotero API key with write permissions. "
+    parser.add_argument("--api-key", help="A Zotero API key with write permissions. "
                         "Create here (after login): https://www.zotero.org/settings/keys/new")
     parser.add_argument("--library-id", default="infer", help="The library ID if different to "
                         "the one used to add the items (See top of table here 'Your userID "
@@ -43,6 +44,15 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--dry-run", action="store_true", default=False,
                         help="Only retrieve items from file and try opening Zotero API connection.")
     args = parser.parse_args()
+
+    apikeyfile = os.path.expanduser("~/.zotero_api_key")
+    if os.path.exists(apikeyfile):
+        with open(apikeyfile) as f:
+            args.api_key = f.read().strip()
+        print('Using Zotero API key in %s' % apikeyfile) 
+    elif not args.api_key:
+        print("You need to either parse --api-key or put one into %s" % apikeyfile)
+        return
 
     items = items_from_docx(args.file)
     connection = {d: getattr(args, d) for d in ['library_id', 'library_type', 'api_key']}
@@ -55,3 +65,6 @@ if __name__ == "__main__":
         else:
             zotero_collection_from_items([i['id'] for i in items],
                                          args.collection, **connection)
+
+if __name__ == "__main__":
+    main()
